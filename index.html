@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-<title>Drop Party Rush 02 — Aimable Routes &amp; Fever Window</title>
+<title>Drop Party Rush 03 — Weak Countdown &amp; Hero Hold</title>
 <style>
   :root{
     --bg-0:#0b1020; --bg-1:#141d33;
@@ -27,6 +27,11 @@
   .title{ font-family:var(--font-disp); font-size:15px; letter-spacing:.5px; text-transform:uppercase; }
   .title b{ color:var(--gold); }
   .round-tag{ font-family:var(--font-disp); font-size:11px; letter-spacing:1px; color:var(--ink-dim); }
+  .topright{ display:flex; align-items:center; gap:8px; }
+  .retrybtn{ pointer-events:auto; cursor:pointer; width:30px; height:30px; border-radius:50%; border:1px solid #2c3a63; background:#1b2440; color:var(--ink-dim); font-size:17px; line-height:1; padding:0; display:flex; align-items:center; justify-content:center; transition:transform .1s, color .12s, border-color .12s; }
+  .retrybtn:active{ transform:rotate(-40deg) scale(.9); }
+  .retrybtn:hover,.retrybtn:focus-visible{ color:var(--gold); border-color:var(--gold); outline:none; }
+  .retrybtn.hidden{ display:none; }
 
   .hpwrap{ margin-top:6px; }
   .hplabel{ display:flex; justify-content:space-between; font-family:var(--font-num); font-size:11px; color:var(--ink-dim); margin-bottom:3px; }
@@ -39,7 +44,20 @@
 
   .midrow{ display:flex; align-items:flex-end; justify-content:space-between; margin-top:8px; gap:8px; }
   .queue{ display:flex; align-items:flex-end; gap:6px; }
-  .qcard{ display:flex; flex-direction:column; align-items:center; gap:2px; background:#16203b; border:1px solid #28335a; border-radius:9px; padding:5px 6px 4px; min-width:42px; }
+  .qcard{ display:flex; flex-direction:column; align-items:center; gap:2px; background:#16203b; border:1px solid #28335a; border-radius:9px; padding:5px 5px 4px; min-width:38px; }
+  .qzone{ display:flex; align-items:flex-end; gap:7px; }
+  .holdslot{ pointer-events:auto; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:2px; background:#101a30; border:1px dashed #3a4a78; border-radius:9px; padding:5px 6px 4px; min-width:46px; transition:transform .1s, border-color .12s, box-shadow .12s, opacity .12s; }
+  .holdslot:active{ transform:scale(.94); }
+  .holdslot.filled{ border-style:solid; border-color:#46a0ff; background:#15233f; }
+  .holdslot.disabled{ opacity:.4; }
+  .holdslot.glow{ border-color:var(--fever); box-shadow:0 0 10px rgba(255,93,208,.6); }
+  .holdslot.shieldhint{ border-color:var(--gold); box-shadow:0 0 11px rgba(255,228,94,.75); }
+  .holdslot .hlab{ font-family:var(--font-disp); font-size:8px; color:#6f8bff; letter-spacing:.5px; }
+  .holdslot .hlab span{ color:var(--ink-dim); }
+  .holdslot .hbody{ display:flex; flex-direction:column; align-items:center; gap:1px; }
+  .holdslot .hdot{ width:18px; height:18px; border-radius:50%; background:transparent; box-shadow:inset 0 0 0 2px #3a4a78; }
+  .holdslot.filled .hdot{ box-shadow:inset 0 0 0 2px rgba(0,0,0,.35); }
+  .holdslot .hname{ font-size:9px; color:var(--ink-dim); }
   .qcard.now{ border-color:var(--gold); background:#1d2742; transform:scale(1.06); }
   .qcard .qdot{ width:18px; height:18px; border-radius:50%; box-shadow:inset 0 0 0 2px rgba(0,0,0,.35); }
   .qcard.now .qdot{ width:24px; height:24px; }
@@ -50,7 +68,7 @@
   .dropsbox{ text-align:right; }
   .drops{ display:flex; align-items:center; gap:6px; justify-content:flex-end; font-family:var(--font-num); font-size:10.5px; color:var(--ink-dim); }
   .pips{ display:flex; gap:3px; }
-  .pip{ width:8px; height:8px; border-radius:50%; background:#33406b; transition:background .15s; }
+  .pip{ width:6px; height:6px; border-radius:50%; background:#33406b; transition:background .15s; }
   .pip.live{ background:var(--gold); box-shadow:0 0 5px rgba(255,228,94,.7); }
 
   .rushwrap{ margin-top:7px; display:flex; align-items:center; gap:8px; }
@@ -84,6 +102,9 @@
   .reward:active{ transform:scale(.99) }
   .reward:hover,.reward:focus-visible{ border-color:var(--gold); background:#26345f; outline:none; }
   .reward .ico{ font-size:22px; } .reward .rt{ font-family:var(--font-disp); font-size:14px; } .reward .rd{ font-size:11.5px; color:var(--ink-dim); margin-top:1px; }
+  .highlights{ display:flex; flex-direction:column; gap:5px; margin:2px 0 12px; }
+  .hl{ display:flex; align-items:center; gap:8px; background:#202c50; border:1px solid var(--panel-line); border-radius:9px; padding:7px 10px; }
+  .hl .hi{ font-size:14px; } .hl .ht{ font-family:var(--font-disp); font-size:10.5px; letter-spacing:.4px; color:var(--gold); flex:1; text-align:left; } .hl .hv{ font-family:var(--font-num); font-size:11px; color:var(--ink); }
   @media (prefers-reduced-motion: reduce){ .card{ animation:none } .hpfill,.rushfill{ transition:none } .hpwrap.weak .wtag{ animation:none } }
 </style>
 </head>
@@ -92,15 +113,21 @@
     <canvas id="game"></canvas>
     <div id="hud">
       <div class="hud-row">
-        <div class="title">Drop Party <b>Rush 02</b></div>
-        <div class="round-tag" id="roundTag">ROUND 1 / 3</div>
+        <div class="title">Drop Party <b>Rush 03</b></div>
+        <div class="topright"><span class="round-tag" id="roundTag">ROUND 1 / 3</span><button class="retrybtn hidden" id="retryBtn" title="이 라운드 다시" aria-label="이 라운드 다시">&#8635;</button></div>
       </div>
       <div class="hpwrap" id="hpwrap">
         <div class="hplabel"><span><span id="gateName">MONSTER</span> <span class="wtag">⚠ WEAK!</span></span><span id="hpText">220 / 220</span></div>
         <div class="hpbar"><div class="hpfill" id="hpfill"></div></div>
       </div>
       <div class="midrow">
-        <div class="queue" id="queue"></div>
+        <div class="qzone">
+          <button class="holdslot" id="holdSlot" title="HOLD (보류/교환)" aria-label="HOLD">
+            <div class="hlab">HOLD <span id="holdCnt">x1</span></div>
+            <div class="hbody"><div class="hdot" id="holdDot"></div><div class="hname" id="holdName">EMPTY</div></div>
+          </button>
+          <div class="queue" id="queue"></div>
+        </div>
         <div class="dropsbox"><div class="drops"><span>DROPS</span><div class="pips" id="pips"></div></div></div>
       </div>
       <div class="rushwrap">
@@ -114,7 +141,7 @@
 <script>
 "use strict";
 /* =========================================================================
-   Drop Party Rush 02 — Aimable Routes & Fever Window
+   Drop Party Rush 03 — Weak Countdown & Hero Hold
    01 기반: 후두두둑/3종/큐/RUSH 유지 + "길 노림 + 약점 러시 + 머지 체감"
    추가: 경사(읽히는 흐름) / 보스 WEAK·FEVER / 상태 강화(READY) / HP 상향·BIG HIT
    단일 HTML · 외부 에셋/라이브러리 없음 · localStorage 미사용
@@ -143,10 +170,20 @@ const CONFIG = {
   fatigue:{ gain:0.30, recover:0.80, tiredAt:1.0, recoverTo:0.5, tiredBundleMul:0.5, tiredDropCd:0.34, cap:1.25 },
 
   // 경사(비탈길): 읽히는 흐름. 반발 낮춰 "타고 흐른다", 궁수는 더 튕겨 확산
-  slope:{ rest:0.14, friction:0.985, archerRestMul:2.6, thickness:10 },
+  slope:{ rest:0.14, friction:0.985, archerRestMul:3.0, thickness:10 },
+
+  // 궁수 팡팡 강화: 핀/경사에서 튕길 때 추가 팝 임펄스 + PING 스파클
+  archer:{ pinPop:55, slopePop:48, popMinSpeed:65, pingCd:0.12 },
+
+  // 정체 감지 / 자동 탈출 보정(PUSH): 위쪽에서 오래 멈춘 유닛을 아래+중앙으로 살짝 밀어줌
+  push:{ stuckSpeed:32, stuckTime:1.5, accel:760, feverMul:1.9, zoneFromBottom:130 },
 
   // 보스 약점 / FEVER 윈도우
-  weak:{ firstDelay:3.5, normalDur:5, weakDur:3, dmgMul:1.6, feverExtra:1.35 },
+  // 보스 약점 / FEVER 윈도우 (+ WEAK 예고 카운트다운)
+  weak:{ firstDelay:3.5, normalDur:5, weakDur:3, countdown:3, dmgMul:1.6, feverExtra:1.35 },
+
+  // HOLD(보류 슬롯): 라운드당 횟수 제한, DROP 미소모
+  hold:{ perRound:1, cooldown:0.5 },
 
   bigHitLevel:3,   // 이 등급 이상이면 BIG HIT 연출
   selfTest:true
@@ -159,7 +196,7 @@ const HERO_TYPES = {
   shield: { key:'shield', name:'방패뚱땅', short:'방패', color:'#ffb13d', rim:'#c47715',
             sizeScale:1.34, density:1.75, bounce:0.55, dmgScale:1.55, bundle:2, spread:13, vy:135, hspread:14 },
   archer: { key:'archer', name:'날쌘궁수', short:'궁수', color:'#46e08a', rim:'#1f9e5a',
-            sizeScale:0.78, density:0.62, bounce:1.32, dmgScale:0.72, bundle:6, spread:34, vy:70,  hspread:58 }
+            sizeScale:0.78, density:0.62, bounce:1.40, dmgScale:0.72, bundle:6, spread:34, vy:70,  hspread:58 }
 };
 
 /* ---------------- 캔버스 & 스케일 ---------------- */
@@ -210,6 +247,8 @@ const isParty=r=>r>=CONFIG.rush.party;
 const becomesTired=f=>f>=CONFIG.fatigue.tiredAt;
 const recoversFromTired=f=>f<=CONFIG.fatigue.recoverTo;
 const tiredBundle=b=>Math.max(2,Math.floor(b*CONFIG.fatigue.tiredBundleMul));
+// WEAK 예고 카운트다운 숫자(평상시 & 카운트다운 구간일 때만)
+const weakCountdownVal=(phaseT,weak)=> (!weak && phaseT<=CONFIG.weak.countdown) ? Math.max(1,Math.ceil(phaseT)) : 0;
 
 /* ---------------- 게임 상태 ---------------- */
 const G={
@@ -218,7 +257,9 @@ const G={
   gate:null, aim:{active:false,x:W/2}, queue:[], bag:[],
   rush:0, fatigue:0, tired:false, party:false, fever:false, prevFever:false, readyFlash:0, dropCd:0,
   combo:0, comboTimer:0, shake:0, flash:0,
-  intro:0, slopeHint:0, weakBannerShown:false, tapHint:true, firstDropDone:false,
+  intro:0, slopeHint:0, weakBannerShown:false, tapHint:true, firstDropDone:false, lastPushFx:0,
+  hold:null, holdLeft:0, holdCd:0, holdArmT:0, weakCountIn:0,
+  stats:{ bestHitDmg:0, bestHitType:null, bestHitLevel:0, feverDmg:0, maxMergeLevel:1, maxCombo:0, holdUsed:false, perfectTiming:false },
   settleTimer:0, acc:0, last:0,
   upgrades:{bundle:0,drops:0,dmg:0,rush:0},
   checklist:{ input:false, dropDecrement:false, merge:false, slopeHit:false,
@@ -242,6 +283,17 @@ function resetQueue(){ G.bag=[]; G.queue=[drawType(),drawType(),drawType()]; }
 function advanceQueue(){ G.queue.shift(); G.queue.push(drawType()); }
 function nowType(){ return HERO_TYPES[G.queue[0]]; }
 function bundleCount(t){ let n=t.bundle+G.upgrades.bundle; if(G.tired) n=tiredBundle(n); return n; }
+// HOLD: 비었으면 NOW를 보류하고 큐 한 칸 당김 / 차있으면 NOW↔HOLD 교환. DROP 미소모.
+function doHold(){
+  if(G.state!=='playing') return;
+  if(G.holdLeft<=0){ floater(W/2,SPAWN_Y+30,'HOLD 소진','#8a97b8',false); return; }
+  if(G.holdCd>0){ return; }
+  if(G.hold===null){ G.hold=G.queue[0]; advanceQueue(); }
+  else { const t=G.hold; G.hold=G.queue[0]; G.queue[0]=t; }
+  G.holdLeft--; G.holdCd=CONFIG.hold.cooldown; G.holdArmT=6; G.stats.holdUsed=true;
+  floater(W/2,SPAWN_Y+30,'HOLD!','#9fe3ff',true); pingFx(W/2,SPAWN_Y+10);
+  updateHUD();
+}
 
 /* ---------------- 영웅 ---------------- */
 function makeHero(x,y,level,typeKey){
@@ -249,7 +301,7 @@ function makeHero(x,y,level,typeKey){
   const r=(CONFIG.levelRadius[level]||12)*t.sizeScale;
   return { x,y, vx:rand(-t.hspread,t.hspread)*0.4, vy:t.vy, level, type:typeKey, r, mass:r*r*0.01*t.density,
            bounce:t.bounce, dmgScale:t.dmgScale, color:t.color, rim:t.rim,
-           mergeCd:CONFIG.mergeCd, hitCd:0, alive:true, spawnT:0, squash:0, touchingGate:false };
+           mergeCd:CONFIG.mergeCd, hitCd:0, alive:true, spawnT:0, squash:0, touchingGate:false, stuckT:0, pingCd:0 };
 }
 function spawnBundle(x){
   const t=nowType(), n=bundleCount(t);
@@ -269,20 +321,23 @@ function makeSlope(ax,ay,bx,by){
 /* ---------------- 라운드별 아레나(핀+경사) ---------------- */
 function buildArena(round){
   G.pins=[]; G.slopes=[];
+  // 출구 throat는 최대 유닛(방패 Lv4 지름 ~80) + 여유를 위해 모두 ~90px 이상,
+  // 경사 아래는 막힌 깔때기가 아니라 보스로 향하는 열린 공간으로 둔다.
   if (round===0){
-    // R1 — 경사 이해: 중앙으로 모으는 쉬운 V (가운데 갭으로 보스에 떨어짐)
-    G.slopes.push(makeSlope(42,360, 178,512));
-    G.slopes.push(makeSlope(348,360, 212,512));
-    G.pins.push({x:120,y:300,r:7},{x:270,y:300,r:7}); // 약간의 튕김
+    // R1 — 경사 이해: 완만한 넓은 V (throat ~110px, 큰 유닛도 통과)
+    G.slopes.push(makeSlope(38,358, 140,452));
+    G.slopes.push(makeSlope(352,358, 250,452));
+    G.pins.push({x:120,y:300,r:7},{x:270,y:300,r:7});
   } else if (round===1){
-    // R2 — 좌/우 선택: 왼쪽=완만(머지), 오른쪽=가파름(강타). 외곽 핀=궁수 확산
-    G.slopes.push(makeSlope(40,406, 188,520));   // 왼쪽 완만
-    G.slopes.push(makeSlope(350,348, 214,500));  // 오른쪽 가파름
+    // R2 — 좌/우 선택: 왼쪽 완만(머지) vs 오른쪽 가파름(강타). throat ~92px.
+    // 경사가 벽까지 닿지 않아 양 측면이 보조 탈출로(어느 쪽도 완전히 막히지 않음).
+    G.slopes.push(makeSlope(48,402, 150,492));   // 왼쪽 완만
+    G.slopes.push(makeSlope(348,352, 242,486));  // 오른쪽 가파름
     G.pins.push({x:34,y:330,r:7},{x:356,y:330,r:7},{x:96,y:280,r:7},{x:300,y:280,r:7});
   } else {
-    // R3 — 약점 러시: 중앙 돌파 채널 + 외곽 튕김 핀
-    G.slopes.push(makeSlope(150,338, 186,548));  // 중앙 좁은 채널(좌)
-    G.slopes.push(makeSlope(240,338, 204,548));  // 중앙 좁은 채널(우)
+    // R3 — 약점 러시: 중앙 돌파 채널(좁지만 ~90px로 통과 가능) + 외곽 튕김 핀
+    G.slopes.push(makeSlope(122,340, 150,508));  // 중앙 채널(좌)
+    G.slopes.push(makeSlope(268,340, 240,508));  // 중앙 채널(우)
     G.pins.push({x:46,y:360,r:7},{x:92,y:440,r:7},{x:48,y:520,r:7});
     G.pins.push({x:344,y:360,r:7},{x:298,y:440,r:7},{x:342,y:520,r:7});
     G.pins.push({x:140,y:300,r:7},{x:250,y:300,r:7});
@@ -300,6 +355,8 @@ function initRound(){
   G.rush=0; G.fatigue=0; G.tired=false; G.party=false; G.fever=false; G.prevFever=false; G.readyFlash=0; G.dropCd=0;
   G.combo=0; G.comboTimer=0; G.shake=0; G.flash=0;
   G.settleTimer=0; G.firstDropDone=false;
+  G.hold=null; G.holdLeft=CONFIG.hold.perRound; G.holdCd=0; G.holdArmT=0; G.weakCountIn=0;
+  G.stats={ bestHitDmg:0, bestHitType:null, bestHitLevel:0, feverDmg:0, maxMergeLevel:1, maxCombo:0, holdUsed:false, perfectTiming:false };
   G.intro=2.0; G.tapHint=true; G.weakBannerShown=false;
   G.slopeHint=(G.round===0)?3.0:1.6;
   resetQueue(); buildArena(G.round);
@@ -313,6 +370,25 @@ function burst(x,y,color,count,spd){ if(REDUCED)count=Math.min(count,5);
 function floater(x,y,text,color,big){ G.floaters.push({x,y,text,color,big:!!big,life:big?.9:.7,t:0,vy:big?-72:-55}); }
 function ring(x,y,maxR,color,width){ if(REDUCED)return; G.rings.push({x,y,r:6,maxR,color,width:width||4,life:.45,t:0}); }
 function addShake(amt){ if(!REDUCED) G.shake=Math.min(G.shake+amt,26); }
+function pingFx(x,y){ if(REDUCED)return; for(let i=0;i<4;i++){ const a=rand(0,Math.PI*2),s=rand(80,180);
+  G.particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,r:rand(1.5,3),life:rand(.18,.38),t:0,color:i%2?'#bfffd9':'#ffffff'}); } }
+
+/* 정체 감지 / 자동 탈출 보정(PUSH): 위쪽에서 1.5초+ 거의 안 움직이면 아래+중앙으로 살짝 밀기 */
+function pushCheck(dt){
+  const zoneY=GROUND_Y-CONFIG.push.zoneFromBottom;
+  const f=CONFIG.push.accel*(G.fever?CONFIG.push.feverMul:1);
+  for(const h of G.heroes){ if(!h.alive)continue;
+    const sp=Math.hypot(h.vx,h.vy);
+    if(h.y<zoneY && sp<CONFIG.push.stuckSpeed) h.stuckT+=dt; else h.stuckT=0;
+    if(h.stuckT>=CONFIG.push.stuckTime){
+      const tx=(W/2-h.x)*0.4, ty=180, tl=Math.hypot(tx,ty)||1;  // 아래 + 중앙(열린 출구)
+      h.vx+=(tx/tl)*f*dt; h.vy+=(ty/tl)*f*dt;
+      h.stuckT=CONFIG.push.stuckTime*0.45;                       // 반복 넛지(자연스럽게)
+      if(performance.now()/1000 - G.lastPushFx > 0.5){ G.lastPushFx=performance.now()/1000;
+        for(let i=0;i<3;i++) G.particles.push({x:h.x,y:h.y+h.r,vx:rand(-40,40),vy:rand(40,120),r:rand(1.5,3),life:.3,t:0,color:'#9fe3ff'}); }
+    }
+  }
+}
 
 /* ---------------- 물리 한 스텝 ---------------- */
 function physicsStep(dt){
@@ -333,23 +409,28 @@ function physicsStep(dt){
     h.touchingGate=false;
   }
 
-  // 2) 핀 (타입 bounce 반영 = 랜덤 튕김)
-  for(const h of G.heroes){ if(!h.alive)continue; const pr=clamp(CONFIG.pinRest*h.bounce,0,0.92);
+  // 2) 핀 (타입 bounce 반영 = 랜덤 튕김). 궁수는 팝 임펄스+PING으로 더 경쾌하게.
+  for(const h of G.heroes){ if(!h.alive)continue; const pr=clamp(CONFIG.pinRest*h.bounce,0,0.94); if(h.pingCd>0)h.pingCd-=dt;
     for(const p of G.pins){ const dx=h.x-p.x,dy=h.y-p.y,d=Math.hypot(dx,dy),min=h.r+p.r;
       if(d<min&&d>0){ const nx=dx/d,ny=dy/d,pen=min-d; h.x+=nx*pen; h.y+=ny*pen;
-        const vn=h.vx*nx+h.vy*ny; if(vn<0){ h.vx-=(1+pr)*vn*nx; h.vy-=(1+pr)*vn*ny; } } } }
+        const vn=h.vx*nx+h.vy*ny;
+        if(vn<0){ h.vx-=(1+pr)*vn*nx; h.vy-=(1+pr)*vn*ny;
+          if(h.type==='archer' && -vn>CONFIG.archer.popMinSpeed){ h.vx+=nx*CONFIG.archer.pinPop; h.vy+=ny*CONFIG.archer.pinPop;
+            if(h.pingCd<=0){ pingFx(h.x,h.y); h.pingCd=CONFIG.archer.pingCd; } } } } } }
 
   // 3) 경사 (읽히는 흐름: 반발 낮춤 + 미끄러짐. 궁수는 더 튕김)
   const half=CONFIG.slope.thickness/2;
   for(const h of G.heroes){ if(!h.alive)continue;
-    const e=clamp(CONFIG.slope.rest*(h.type==='archer'?CONFIG.slope.archerRestMul:1),0,0.7);
+    const e=clamp(CONFIG.slope.rest*(h.type==='archer'?CONFIG.slope.archerRestMul:1),0,0.78);
     for(const s of G.slopes){
       const c=closestOnSeg(h.x,h.y,s.ax,s.ay,s.bx,s.by);
       const dx=h.x-c.x, dy=h.y-c.y, d=Math.hypot(dx,dy), min=h.r+half;
       if(d<min && d>0){
         const nx=dx/d, ny=dy/d, pen=min-d; h.x+=nx*pen; h.y+=ny*pen;
         const vn=h.vx*nx+h.vy*ny;
-        if(vn<0){ h.vx-=(1+e)*vn*nx; h.vy-=(1+e)*vn*ny; }
+        if(vn<0){ h.vx-=(1+e)*vn*nx; h.vy-=(1+e)*vn*ny;
+          if(h.type==='archer' && -vn>CONFIG.archer.popMinSpeed){ h.vx+=nx*CONFIG.archer.slopePop; h.vy+=ny*CONFIG.archer.slopePop;
+            if(h.pingCd<=0){ pingFx(h.x,h.y); h.pingCd=CONFIG.archer.pingCd; } } }
         h.vx*=CONFIG.slope.friction; h.vy*=CONFIG.slope.friction;
         G.checklist.slopeHit=true;
       }
@@ -372,7 +453,8 @@ function physicsStep(dt){
     const nx=(a.x*a.mass+b.x*b.mass)/m, ny=(a.y*a.mass+b.y*b.mass)/m;
     const h=makeHero(nx,ny,mergeResult(a.level),a.type);
     h.vx=(a.vx*a.mass+b.vx*b.mass)/m; h.vy=(a.vy*a.mass+b.vy*b.mass)/m; h.spawnT=0; h.mergeCd=CONFIG.mergeCd;
-    G.heroes.push(h); burst(nx,ny,h.color,14,260); floater(nx,ny-6,'MERGE!','#ffe45e',true); ring(nx,ny,h.r*3,h.color,3); addShake(3); G.checklist.merge=true; }
+    G.heroes.push(h); burst(nx,ny,h.color,14,260); floater(nx,ny-6,'MERGE!','#ffe45e',true); ring(nx,ny,h.r*3,h.color,3); addShake(3); G.checklist.merge=true;
+    if(h.level>G.stats.maxMergeLevel) G.stats.maxMergeLevel=h.level; }
   if(merges.length) G.heroes=G.heroes.filter(h=>h.alive);
 
   // 5) 몬스터 충돌 → 피해
@@ -412,6 +494,12 @@ function applyGateDamage(dmg,hero,silent){
     else if(big){ floater(g.x,g.y-g.h-34,'BIG HIT!','#ffd34d',true); ring(hero.x,g.y-g.h,hero.r*3.5,'#ffae57',4); G.checklist.bigHit=true; }
     // 연속 피격 단어
     G.combo++; G.comboTimer=0.8;
+    // 결과 칭찬용 통계
+    if(dmg>G.stats.bestHitDmg){ G.stats.bestHitDmg=dmg; G.stats.bestHitType=hero.type; G.stats.bestHitLevel=hero.level; }
+    if(G.fever) G.stats.feverDmg+=dmg;
+    if(G.combo>G.stats.maxCombo) G.stats.maxCombo=G.combo;
+    if(g.weak && big){ G.stats.perfectTiming=true;
+      if(G.holdArmT>0){ floater(g.x,g.y-g.h-58,'PERFECT HOLD!','#ffe45e',true); G.holdArmT=0; } }
     if(G.fever && dmg>=14 && !big) floater(g.x,g.y-g.h-34,'FEVER HIT!','#ff5dd0',true);
     else if(G.party && dmg>=14 && !big) floater(g.x,g.y-g.h-34,'RUSH HIT!','#ffe45e',true);
     else if(G.combo===10 && !big) floater(g.x,g.y-g.h-34,'DIZZY!','#ff8a3d',true);
@@ -450,9 +538,13 @@ function onDrop(){
 function updateBossPhase(dt){
   const g=G.gate; if(!g||g.dead)return;
   g.phaseT-=dt;
+  // WEAK 예고 카운트다운 (숫자 바뀔 때 보스 움찔 + 작은 링)
+  const prevCount=G.weakCountIn;
+  G.weakCountIn=weakCountdownVal(g.phaseT, g.weak);
+  if(G.weakCountIn>0 && G.weakCountIn!==prevCount){ g.shakeX+=2.4; ring(g.x,g.y-g.h/2,86,'#ff5dd0',3); }
   if(g.phaseT<=0){
     if(g.weak){ g.weak=false; g.phaseT=CONFIG.weak.normalDur; G.checklist.weakExit=true; }
-    else{ g.weak=true; g.weakPulse=0; g.phaseT=CONFIG.weak.weakDur; G.checklist.weakEnter=true;
+    else{ g.weak=true; g.weakPulse=0; g.phaseT=CONFIG.weak.weakDur; G.weakCountIn=0; G.checklist.weakEnter=true;
       floater(g.x,g.y-g.h-44,'WEAK! 지금 러시!','#ff5dd0',true); ring(g.x,g.y-g.h/2,120,'#ff5dd0',4); }
   }
 }
@@ -463,6 +555,8 @@ function update(dt){
   G.acc+=dt; const STEP=1/120; let steps=0;
   while(G.acc>=STEP&&steps<6){ physicsStep(STEP); G.acc-=STEP; steps++; } if(steps===6)G.acc=0;
   if(G.state==='playing') updateBossPhase(dt);
+  if(G.state==='playing') pushCheck(dt);
+  if(G.holdCd>0)G.holdCd-=dt; if(G.holdArmT>0)G.holdArmT-=dt;
   updateRush(dt); decayFx(dt);
   G.shake*=0.86; if(G.shake<0.2)G.shake=0;
   if(G.flash>0)G.flash=Math.max(0,G.flash-dt*1.5);
@@ -517,6 +611,7 @@ function render(){
     if(G.aim.active&&G.dropsLeft>0&&G.dropCd<=0)drawAim();
     if(G.tapHint&&!G.firstDropDone)drawTapHint();
     if(G.slopeHint>0&&G.slopes.length)drawSlopeHint();
+    if(G.weakCountIn>0)drawWeakCountdown();
     if(G.intro>0)drawIntro();
   }
   ctx.restore();
@@ -558,6 +653,10 @@ function drawSlopeHint(){ const a=clamp(G.slopeHint/0.5,0,1); ctx.save(); ctx.gl
   ctx.fillText('길을 타고 내려가!', W/2, 270); ctx.restore(); }
 function drawIntro(){ const a=Math.min(1,G.intro/0.4)*Math.min(1,(2.0-G.intro)/0.2+0.2); ctx.save(); ctx.globalAlpha=clamp(a,0,1);
   ctx.fillStyle='#ffe45e'; ctx.font='800 22px Arial'; ctx.textAlign='center'; ctx.fillText('길을 노려 몬스터를 부숴!', W/2, SPAWN_Y-46); ctx.restore(); }
+function drawWeakCountdown(){ const g=G.gate; if(!g||G.weakCountIn<=0)return;
+  const pulse=0.5+0.5*Math.sin(performance.now()/170); ctx.save(); ctx.globalAlpha=0.65+0.35*pulse;
+  ctx.fillStyle='#ff5dd0'; ctx.font='800 18px Arial'; ctx.textAlign='center';
+  ctx.fillText('WEAK in '+G.weakCountIn, g.x, g.y-g.h-44); ctx.restore(); }
 
 function drawHero(h){
   const pop=h.spawnT<1?(0.4+0.6*easeOutBack(h.spawnT)):1, sx=pop*(1+h.squash*0.18), sy=pop*(1-h.squash*0.22);
@@ -584,6 +683,10 @@ function drawGate(){
   if(g.weak&&!g.dead){ const p=0.5+0.5*Math.sin(g.weakPulse*8);
     ctx.save(); ctx.globalAlpha=0.35+0.35*p; ctx.strokeStyle='#ff5dd0'; ctx.lineWidth=3+p*3;
     roundRect(left-8,t2-8,w+16,h+16,14); ctx.stroke(); ctx.restore(); }
+  // WEAK 예고: 카운트다운 중 약점 오라 깜빡임(임박할수록 또렷)
+  else if(G.weakCountIn>0&&!g.dead){ const blink=Math.abs(Math.sin(performance.now()/160));
+    ctx.save(); ctx.globalAlpha=(0.10+0.22*blink)*(1+(CONFIG.weak.countdown-G.weakCountIn)*0.25);
+    ctx.strokeStyle='#ff5dd0'; ctx.lineWidth=2+blink*2; roundRect(left-6,t2-6,w+12,h+12,13); ctx.stroke(); ctx.restore(); }
 
   // 몸체(평상=강철색, WEAK=보랏빛)
   let r,gg,b;
@@ -630,7 +733,10 @@ canvas.addEventListener('pointercancel',()=>{ G.aim.active=false; });
 const el={ roundTag:document.getElementById('roundTag'), pips:document.getElementById('pips'), hpText:document.getElementById('hpText'),
   hpfill:document.getElementById('hpfill'), hpwrap:document.getElementById('hpwrap'), gateName:document.getElementById('gateName'),
   queue:document.getElementById('queue'), rushfill:document.getElementById('rushfill'), statepill:document.getElementById('statepill'),
-  overlay:document.getElementById('overlay'), cardBox:document.getElementById('cardBox') };
+  overlay:document.getElementById('overlay'), cardBox:document.getElementById('cardBox'), retryBtn:document.getElementById('retryBtn'),
+  holdSlot:document.getElementById('holdSlot'), holdCnt:document.getElementById('holdCnt'), holdDot:document.getElementById('holdDot'), holdName:document.getElementById('holdName') };
+el.retryBtn.onclick=()=>{ if(G.state==='playing'||G.state==='clearing') initRound(); };
+el.holdSlot.onclick=()=>doHold();
 let lastQueueKey='';
 function updateHUD(){
   el.roundTag.textContent=`ROUND ${G.round+1} / ${CONFIG.rounds.length}`;
@@ -653,6 +759,15 @@ function updateHUD(){
   else if(G.rush>0.25){ lab='RUSH'; cls='rush'; }
   else { lab='READY'; cls='ready'; }
   el.statepill.textContent=lab; el.statepill.className='statepill '+cls;
+  el.retryBtn.classList.toggle('hidden', !(G.state==='playing'||G.state==='clearing'));
+  // HOLD 슬롯
+  const counting=G.weakCountIn>0;
+  el.holdCnt.textContent='x'+G.holdLeft;
+  el.holdSlot.classList.toggle('disabled', G.holdLeft<=0);
+  el.holdSlot.classList.toggle('glow', counting && G.holdLeft>0 && G.hold!=='shield');
+  el.holdSlot.classList.toggle('shieldhint', counting && G.hold==='shield');
+  if(G.hold){ const t=HERO_TYPES[G.hold]; el.holdSlot.classList.add('filled'); el.holdDot.style.background=t.color; el.holdName.textContent=t.short; }
+  else { el.holdSlot.classList.remove('filled'); el.holdDot.style.background='transparent'; el.holdName.textContent='EMPTY'; }
 }
 
 /* ---------------- 모달 ---------------- */
@@ -668,9 +783,21 @@ function showStart(){
       <div class="leg"><div class="d" style="background:${L.archer.color}"></div>궁수<br><span>확산</span></div>
     </div>
     <button class="btn" id="btnStart">탭해서 시작</button>
-    <p class="hint">경사를 타고 흐르고, <b>WEAK</b> 뜨면 <b>RUSH</b>로 쏟아부어.</p>`);
+    <p class="hint"><b>WEAK in 3</b> 예고를 보고 좋은 용사는 <b>HOLD</b>로 아꼈다가, <b>WEAK</b> 뜨면 <b>RUSH</b>로 쏟아부어!</p>`);
   document.getElementById('btnStart').onclick=()=>{ G.round=0; G.upgrades={bundle:0,drops:0,dmg:0,rush:0}; initRound(); };
 }
+function buildHighlights(){
+  const s=G.stats, out=[];
+  if(s.perfectTiming) out.push(['⏱','PERFECT TIMING!','']);
+  if(s.bestHitDmg>0){ const t=HERO_TYPES[s.bestHitType]; out.push(['💥','BEST HIT', `${t?t.short:''} Lv${s.bestHitLevel} · ${Math.round(s.bestHitDmg)}`]); }
+  if(s.feverDmg>0) out.push(['🔥','FEVER DAMAGE', `${Math.round(s.feverDmg)}`]);
+  if(s.maxMergeLevel>=2) out.push(['⬆','BIGGEST MERGE', `Lv${s.maxMergeLevel}`]);
+  if(s.maxCombo>=4) out.push(['⚡','RUSH COMBO', `x${s.maxCombo}`]);
+  if(s.holdUsed) out.push(['🤚','HOLD PLAY!','']);
+  return out.slice(0,3);
+}
+function highlightsHTML(){ const hl=buildHighlights(); if(!hl.length) return '';
+  return `<div class="highlights">${hl.map(h=>`<div class="hl"><span class="hi">${h[0]}</span><span class="ht">${h[1]}</span><span class="hv">${h[2]}</span></div>`).join('')}</div>`; }
 function showReward(){
   G.state='reward';
   const pool=[ {key:'bundle',ico:'➕',t:'투입 +1',d:'모든 용사 한 번에 +1'},
@@ -679,11 +806,11 @@ function showReward(){
     {key:'rush',ico:'🔥',t:'RUSH 쉽게',d:'PARTY/FEVER 더 빨리'} ];
   const pick=shuffle(pool.slice()).slice(0,3);
   const cards=pick.map(p=>`<div class="reward" data-key="${p.key}" tabindex="0" role="button"><div class="ico">${p.ico}</div><div><div class="rt">${p.t}</div><div class="rd">${p.d}</div></div></div>`).join('');
-  showOverlay(`<div class="big good">ROUND ${G.round+1} CLEAR!</div><p class="sub">강화를 하나 골라 다음 라운드로.</p><div class="rewards">${cards}</div>`);
+  showOverlay(`<div class="big good">ROUND ${G.round+1} CLEAR!</div>${highlightsHTML()}<p class="sub">강화를 하나 골라 다음 라운드로.</p><div class="rewards">${cards}</div>`);
   el.cardBox.querySelectorAll('.reward').forEach(node=>{ const apply=()=>{ G.upgrades[node.dataset.key]++; G.round++; initRound(); }; node.onclick=apply; node.onkeydown=e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); apply(); } }; });
 }
 function showAllClear(){ G.state='allclear';
-  showOverlay(`<div class="big gold">ALL CLEAR!</div><p class="sub">3마리 몬스터를 모두 쓰러뜨렸어.<br>길을 노리고 약점에 쏟아부은 한 판 끝!</p><button class="btn" id="btnAgain">처음부터 다시</button>`);
+  showOverlay(`<div class="big gold">ALL CLEAR!</div>${highlightsHTML()}<p class="sub">3마리 몬스터를 모두 쓰러뜨렸어.<br>길을 노리고 약점에 쏟아부은 한 판 끝!</p><button class="btn" id="btnAgain">처음부터 다시</button>`);
   document.getElementById('btnAgain').onclick=()=>{ G.round=0; G.upgrades={bundle:0,drops:0,dmg:0,rush:0}; initRound(); }; }
 function showFail(){ G.state='fail'; G.checklist.fail=true;
   showOverlay(`<div class="big bad">몬스터가 버텼다</div><p class="sub">투입을 다 썼어. 같은 용사를 모아 키우고,<br><b>WEAK</b> 뜰 때 쏟아부어보자.</p><button class="btn" id="btnRetry">이 라운드 다시</button><button class="btn ghost" id="btnRestart">처음부터</button>`);
@@ -710,6 +837,12 @@ function runSelfTest(){
   const c1=closestOnSeg(5,5,0,0,10,0); ok('closestOnSeg mid',Math.abs(c1.x-5)<1e-9&&Math.abs(c1.y-0)<1e-9);
   const c2=closestOnSeg(-3,2,0,0,10,0); ok('closestOnSeg clamp A',c2.x===0&&c2.y===0);
   const c3=closestOnSeg(20,1,0,0,10,0); ok('closestOnSeg clamp B',c3.x===10&&c3.y===0);
+  ok('archer bounciest', HERO_TYPES.archer.bounce>HERO_TYPES.sword.bounce && HERO_TYPES.sword.bounce>HERO_TYPES.shield.bounce);
+  ok('countdown fits normal', CONFIG.weak.countdown<=CONFIG.weak.normalDur);
+  ok('countdown val 3', weakCountdownVal(2.4,false)===3 && weakCountdownVal(0.4,false)===1);
+  ok('countdown off when normal far', weakCountdownVal(4.0,false)===0);
+  ok('countdown off when weak', weakCountdownVal(2.0,true)===0);
+  ok('hold perRound>=1', CONFIG.hold.perRound>=1);
   ok('clear at 0',isCleared(0)&&!isCleared(1));
   const pass=res.filter(r=>r[1]).length;
   console.log(`%c[SELFTEST] ${pass}/${res.length} passed`,'color:#46e08a;font-weight:bold');
