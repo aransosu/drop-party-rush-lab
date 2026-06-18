@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-<title>Drop Party Rush 03 — Weak Countdown &amp; Hero Hold</title>
+<title>Drop Party Rush 04 — Expedition Stock Run</title>
 <style>
   :root{
     --bg-0:#0b1020; --bg-1:#141d33;
@@ -69,6 +69,13 @@
   .drops{ display:flex; align-items:center; gap:6px; justify-content:flex-end; font-family:var(--font-num); font-size:10.5px; color:var(--ink-dim); }
   .pips{ display:flex; gap:3px; }
   .pip{ width:6px; height:6px; border-radius:50%; background:#33406b; transition:background .15s; }
+  .stockbox{ text-align:right; }
+  .stocklab{ font-family:var(--font-disp); font-size:8px; letter-spacing:1px; color:var(--ink-dim); text-align:right; }
+  .stockrow{ display:flex; gap:9px; justify-content:flex-end; margin-top:2px; }
+  .st{ display:flex; align-items:center; gap:3px; font-family:var(--font-num); font-size:13px; color:var(--ink); }
+  .st .sd{ width:11px; height:11px; border-radius:50%; box-shadow:inset 0 0 0 2px rgba(0,0,0,.3); }
+  .st.low b{ color:#ffd34d; }
+  .st.empty{ opacity:.4; } .st.empty b{ color:var(--danger); }
   .pip.live{ background:var(--gold); box-shadow:0 0 5px rgba(255,228,94,.7); }
 
   .rushwrap{ margin-top:7px; display:flex; align-items:center; gap:8px; }
@@ -105,6 +112,9 @@
   .highlights{ display:flex; flex-direction:column; gap:5px; margin:2px 0 12px; }
   .hl{ display:flex; align-items:center; gap:8px; background:#202c50; border:1px solid var(--panel-line); border-radius:9px; padding:7px 10px; }
   .hl .hi{ font-size:14px; } .hl .ht{ font-family:var(--font-disp); font-size:10.5px; letter-spacing:.4px; color:var(--gold); flex:1; text-align:left; } .hl .hv{ font-family:var(--font-num); font-size:11px; color:var(--ink); }
+  .rankbox{ font-family:var(--font-disp); font-size:14px; letter-spacing:1px; color:var(--ink-dim); margin:6px 0 0; }
+  .rk{ font-size:30px; margin-left:6px; }
+  .rk-S{ color:#ffe45e; } .rk-A{ color:#46e08a; } .rk-B{ color:#56c7ff; } .rk-C{ color:#8a97b8; }
   @media (prefers-reduced-motion: reduce){ .card{ animation:none } .hpfill,.rushfill{ transition:none } .hpwrap.weak .wtag{ animation:none } }
 </style>
 </head>
@@ -113,7 +123,7 @@
     <canvas id="game"></canvas>
     <div id="hud">
       <div class="hud-row">
-        <div class="title">Drop Party <b>Rush 03</b></div>
+        <div class="title">Drop Party <b>Rush 04</b></div>
         <div class="topright"><span class="round-tag" id="roundTag">ROUND 1 / 3</span><button class="retrybtn hidden" id="retryBtn" title="이 라운드 다시" aria-label="이 라운드 다시">&#8635;</button></div>
       </div>
       <div class="hpwrap" id="hpwrap">
@@ -128,7 +138,14 @@
           </button>
           <div class="queue" id="queue"></div>
         </div>
-        <div class="dropsbox"><div class="drops"><span>DROPS</span><div class="pips" id="pips"></div></div></div>
+        <div class="stockbox">
+          <div class="stocklab">STOCK</div>
+          <div class="stockrow">
+            <div class="st" id="stSword"><span class="sd" style="background:var(--c-sword)"></span><b id="stSwordN">12</b></div>
+            <div class="st" id="stShield"><span class="sd" style="background:var(--c-shield)"></span><b id="stShieldN">6</b></div>
+            <div class="st" id="stArcher"><span class="sd" style="background:var(--c-archer)"></span><b id="stArcherN">10</b></div>
+          </div>
+        </div>
       </div>
       <div class="rushwrap">
         <div class="rushbar"><div class="rushfill" id="rushfill"></div></div>
@@ -141,7 +158,7 @@
 <script>
 "use strict";
 /* =========================================================================
-   Drop Party Rush 03 — Weak Countdown & Hero Hold
+   Drop Party Rush 04 — Expedition Stock Run
    01 기반: 후두두둑/3종/큐/RUSH 유지 + "길 노림 + 약점 러시 + 머지 체감"
    추가: 경사(읽히는 흐름) / 보스 WEAK·FEVER / 상태 강화(READY) / HP 상향·BIG HIT
    단일 HTML · 외부 에셋/라이브러리 없음 · localStorage 미사용
@@ -164,6 +181,11 @@ const CONFIG = {
 
   // HP 상향(01: 90/130/170) → 머지·러시를 둘 다 써야 잡힘
   rounds:[200,330,480], dropsPerRound:12,
+
+  // 원정 전체 용사 재고(3스테이지 공유, 충전 없음). 투입 시 해당 타입 1 차감.
+  stock:{ sword:12, shield:6, archer:10 },
+  // 남은 총 재고로 원정 랭크
+  rank:{ S:8, A:4, B:1 },
   settleSpeed:36, settleTime:1.1,
 
   rush:{ gain:0.36, decay:0.95, party:0.6, cap:1.25, partyDmg:0.2 },
@@ -252,7 +274,7 @@ const weakCountdownVal=(phaseT,weak)=> (!weak && phaseT<=CONFIG.weak.countdown) 
 
 /* ---------------- 게임 상태 ---------------- */
 const G={
-  state:'start', round:0, dropsLeft:0,
+  state:'start', round:0, stock:{sword:0,shield:0,archer:0}, stageStartStock:{sword:0,shield:0,archer:0},
   heroes:[], pins:[], slopes:[], particles:[], floaters:[], rings:[],
   gate:null, aim:{active:false,x:W/2}, queue:[], bag:[],
   rush:0, fatigue:0, tired:false, party:false, fever:false, prevFever:false, readyFlash:0, dropCd:0,
@@ -277,11 +299,25 @@ const cur={
   }
 };
 
-/* ---------------- 큐 ---------------- */
-function drawType(){ if(G.bag.length===0){ G.bag=shuffle(['sword','sword','shield','shield','archer','archer']); } return G.bag.pop(); }
-function resetQueue(){ G.bag=[]; G.queue=[drawType(),drawType(),drawType()]; }
+/* ---------------- 큐 (남은 재고 타입에서만 생성) ---------------- */
+const TYPE_KEYS=['sword','shield','archer'];
+function totalStock(){ return G.stock.sword+G.stock.shield+G.stock.archer; }
+function countInQueue(k){ let c=0; for(const x of G.queue) if(x===k) c++; return c; }
+// 해당 타입을 큐에 더 넣을 수 있는가(재고 - 이미 큐에 든 수 - HOLD 보유 수)
+function canQueue(k){ return (G.stock[k] - countInQueue(k) - (G.hold===k?1:0)) > 0; }
+// 큐 한 칸 뽑기: 넣을 수 있는 타입 중 남은 가용 수에 비례해 가중 선택. 없으면 null.
+function drawType(){
+  const avail=TYPE_KEYS.filter(canQueue);
+  if(avail.length===0) return null;
+  const w=avail.map(k=> G.stock[k]-countInQueue(k)-(G.hold===k?1:0));
+  let r=Math.random()*w.reduce((a,b)=>a+b,0);
+  for(let i=0;i<avail.length;i++){ r-=w[i]; if(r<=0) return avail[i]; }
+  return avail[avail.length-1];
+}
+function resetQueue(){ G.queue=[null,null,null]; for(let i=0;i<3;i++) G.queue[i]=drawType(); }
 function advanceQueue(){ G.queue.shift(); G.queue.push(drawType()); }
-function nowType(){ return HERO_TYPES[G.queue[0]]; }
+function nowType(){ return G.queue[0] ? HERO_TYPES[G.queue[0]] : null; }
+function hasNow(){ return G.queue[0]!==null; }
 function bundleCount(t){ let n=t.bundle+G.upgrades.bundle; if(G.tired) n=tiredBundle(n); return n; }
 // HOLD: 비었으면 NOW를 보류하고 큐 한 칸 당김 / 차있으면 NOW↔HOLD 교환. DROP 미소모.
 function doHold(){
@@ -304,9 +340,13 @@ function makeHero(x,y,level,typeKey){
            mergeCd:CONFIG.mergeCd, hitCd:0, alive:true, spawnT:0, squash:0, touchingGate:false, stuckT:0, pingCd:0 };
 }
 function spawnBundle(x){
-  const t=nowType(), n=bundleCount(t);
+  const t=nowType(); if(!t) return false;
+  const n=bundleCount(t);
   for(let i=0;i<n;i++){ const px=clamp(x+rand(-t.spread,t.spread),16,W-16); const h=makeHero(px,SPAWN_Y+rand(-12,12),1,t.key); h.vx+=rand(-t.hspread,t.hspread)*0.5; G.heroes.push(h); }
+  G.stock[t.key]=Math.max(0, G.stock[t.key]-1);   // 재고 1 차감(실제 투입 시)
+  G.checklist.dropDecrement=true;
   advanceQueue();
+  return true;
 }
 
 /* ---------------- 경사 ---------------- */
@@ -328,12 +368,14 @@ function buildArena(round){
     G.slopes.push(makeSlope(38,358, 140,452));
     G.slopes.push(makeSlope(352,358, 250,452));
     G.pins.push({x:120,y:300,r:7},{x:270,y:300,r:7});
+    G.pins.push({x:195,y:636,r:9});   // 중앙 범퍼: 직격은 흩어져 머지↓ (중앙은 살림)
   } else if (round===1){
     // R2 — 좌/우 선택: 왼쪽 완만(머지) vs 오른쪽 가파름(강타). throat ~92px.
     // 경사가 벽까지 닿지 않아 양 측면이 보조 탈출로(어느 쪽도 완전히 막히지 않음).
     G.slopes.push(makeSlope(48,402, 150,492));   // 왼쪽 완만
     G.slopes.push(makeSlope(348,352, 242,486));  // 오른쪽 가파름
     G.pins.push({x:34,y:330,r:7},{x:356,y:330,r:7},{x:96,y:280,r:7},{x:300,y:280,r:7});
+    G.pins.push({x:195,y:636,r:9});   // 중앙 범퍼
   } else {
     // R3 — 약점 러시: 중앙 돌파 채널(좁지만 ~90px로 통과 가능) + 외곽 튕김 핀
     G.slopes.push(makeSlope(122,340, 150,508));  // 중앙 채널(좌)
@@ -351,17 +393,23 @@ function initRound(){
            shakeX:0, shakeY:0, flash:0, hitSquash:0, eyeWide:0, taunt:0.9,
            weak:false, phaseT:CONFIG.weak.firstDelay, weakPulse:0, dead:false, destroyT:0 };
   G.heroes=[]; G.particles=[]; G.floaters=[]; G.rings=[];
-  G.dropsLeft=cur.drops();
+  G.stageStartStock={...G.stock};   // 스테이지 진입 시점 재고(RETRY STAGE용)
   G.rush=0; G.fatigue=0; G.tired=false; G.party=false; G.fever=false; G.prevFever=false; G.readyFlash=0; G.dropCd=0;
   G.combo=0; G.comboTimer=0; G.shake=0; G.flash=0;
   G.settleTimer=0; G.firstDropDone=false;
   G.hold=null; G.holdLeft=CONFIG.hold.perRound; G.holdCd=0; G.holdArmT=0; G.weakCountIn=0;
-  G.stats={ bestHitDmg:0, bestHitType:null, bestHitLevel:0, feverDmg:0, maxMergeLevel:1, maxCombo:0, holdUsed:false, perfectTiming:false };
   G.intro=2.0; G.tapHint=true; G.weakBannerShown=false;
   G.slopeHint=(G.round===0)?3.0:1.6;
   resetQueue(); buildArena(G.round);
   G.state='playing'; hideOverlay(); updateHUD();
 }
+// 원정 시작: 전체 재고/통계/라운드 리셋 후 첫 스테이지
+function startExpedition(){
+  G.stock={...CONFIG.stock}; G.round=0; G.upgrades={bundle:0,drops:0,dmg:0,rush:0};
+  G.stats={ bestHitDmg:0, bestHitType:null, bestHitLevel:0, feverDmg:0, maxMergeLevel:1, maxCombo:0, holdUsed:false, perfectTiming:false };
+  initRound();
+}
+function retryStage(){ G.stock={...G.stageStartStock}; initRound(); }
 
 /* ---------------- 이펙트 ---------------- */
 function burst(x,y,color,count,spd){ if(REDUCED)count=Math.min(count,5);
@@ -565,11 +613,12 @@ function update(dt){
 
   const g=G.gate;
   if(g&&g.dead){ if(G.state==='playing')G.state='clearing';
-    if(G.state==='clearing'&&g.destroyT>(REDUCED?0.3:0.85)){ if(G.round>=CONFIG.rounds.length-1)showAllClear(); else showReward(); } }
-  if(G.state==='playing'&&G.dropsLeft<=0&&!(g&&g.dead)){
+    if(G.state==='clearing'&&g.destroyT>(REDUCED?0.3:0.85)){ if(G.round>=CONFIG.rounds.length-1)showExpeditionClear(); else showStageClear(); } }
+  // 재고 전부 소진 + 몬스터 생존 + 화면 유닛 정지 → 원정 실패(GAME OVER)
+  if(G.state==='playing'&&totalStock()<=0&&!(g&&g.dead)){
     let maxSp=0,touching=false;
     for(const h of G.heroes){ if(!h.alive)continue; maxSp=Math.max(maxSp,Math.hypot(h.vx,h.vy)); if(h.touchingGate)touching=true; }
-    if((maxSp<CONFIG.settleSpeed&&!touching)||G.heroes.length===0){ G.settleTimer+=dt; if(G.settleTimer>=CONFIG.settleTime)showFail(); } else G.settleTimer=0;
+    if((maxSp<CONFIG.settleSpeed&&!touching)||G.heroes.length===0){ G.settleTimer+=dt; if(G.settleTimer>=CONFIG.settleTime)showGameOver(); } else G.settleTimer=0;
   }
   updateHUD();
 }
@@ -608,7 +657,7 @@ function render(){
   ctx.globalAlpha=1;
 
   if(G.state==='playing'){
-    if(G.aim.active&&G.dropsLeft>0&&G.dropCd<=0)drawAim();
+    if(G.aim.active&&hasNow()&&G.dropCd<=0)drawAim();
     if(G.tapHint&&!G.firstDropDone)drawTapHint();
     if(G.slopeHint>0&&G.slopes.length)drawSlopeHint();
     if(G.weakCountIn>0)drawWeakCountdown();
@@ -721,33 +770,42 @@ function easeOutBack(t){ const c1=1.70158,c3=c1+1; return 1+c3*Math.pow(t-1,3)+c
 
 /* ---------------- 입력 ---------------- */
 function pointerToX(e){ const rect=canvas.getBoundingClientRect(); return clamp((e.clientX-rect.left)/rect.width*W,18,W-18); }
-canvas.addEventListener('pointerdown',e=>{ if(G.state!=='playing'||G.dropsLeft<=0)return; G.aim.active=true; G.aim.x=pointerToX(e); G.checklist.input=true; canvas.setPointerCapture&&canvas.setPointerCapture(e.pointerId); });
+canvas.addEventListener('pointerdown',e=>{ if(G.state!=='playing'||!hasNow())return; G.aim.active=true; G.aim.x=pointerToX(e); G.checklist.input=true; canvas.setPointerCapture&&canvas.setPointerCapture(e.pointerId); });
 canvas.addEventListener('pointermove',e=>{ if(G.aim.active)G.aim.x=pointerToX(e); });
-canvas.addEventListener('pointerup',e=>{ if(!G.aim.active)return; G.aim.active=false; if(G.state!=='playing'||G.dropsLeft<=0)return;
+canvas.addEventListener('pointerup',e=>{ if(!G.aim.active)return; G.aim.active=false; if(G.state!=='playing')return;
+  if(!hasNow()){ return; }
   if(G.dropCd>0){ floater(pointerToX(e),GROUND_Y-130,'헥헥…','#ff8a3d',false); return; }
-  spawnBundle(pointerToX(e)); const before=G.dropsLeft; G.dropsLeft-=1; if(G.dropsLeft<before)G.checklist.dropDecrement=true;
+  spawnBundle(pointerToX(e));   // 내부에서 재고 1 차감 + 큐 진행
   onDrop(); G.firstDropDone=true; G.tapHint=false; addShake(1.5); updateHUD(); });
 canvas.addEventListener('pointercancel',()=>{ G.aim.active=false; });
 
 /* ---------------- HUD ---------------- */
-const el={ roundTag:document.getElementById('roundTag'), pips:document.getElementById('pips'), hpText:document.getElementById('hpText'),
+const el={ roundTag:document.getElementById('roundTag'), hpText:document.getElementById('hpText'),
   hpfill:document.getElementById('hpfill'), hpwrap:document.getElementById('hpwrap'), gateName:document.getElementById('gateName'),
   queue:document.getElementById('queue'), rushfill:document.getElementById('rushfill'), statepill:document.getElementById('statepill'),
+  st:{ sword:document.getElementById('stSword'), shield:document.getElementById('stShield'), archer:document.getElementById('stArcher') },
+  stN:{ sword:document.getElementById('stSwordN'), shield:document.getElementById('stShieldN'), archer:document.getElementById('stArcherN') },
   overlay:document.getElementById('overlay'), cardBox:document.getElementById('cardBox'), retryBtn:document.getElementById('retryBtn'),
   holdSlot:document.getElementById('holdSlot'), holdCnt:document.getElementById('holdCnt'), holdDot:document.getElementById('holdDot'), holdName:document.getElementById('holdName') };
-el.retryBtn.onclick=()=>{ if(G.state==='playing'||G.state==='clearing') initRound(); };
+el.retryBtn.onclick=()=>{ if(G.state==='playing'||G.state==='clearing') retryStage(); };
 el.holdSlot.onclick=()=>doHold();
 let lastQueueKey='';
 function updateHUD(){
-  el.roundTag.textContent=`ROUND ${G.round+1} / ${CONFIG.rounds.length}`;
-  const total=cur.drops();
-  if(el.pips.childElementCount!==total){ el.pips.innerHTML=''; for(let i=0;i<total;i++){ const d=document.createElement('div'); d.className='pip'; el.pips.appendChild(d); } }
-  [...el.pips.children].forEach((p,i)=>p.classList.toggle('live',i<G.dropsLeft));
+  el.roundTag.textContent=`STAGE ${G.round+1} / ${CONFIG.rounds.length}`;
+  // STOCK 표시(타입별 남은 재고). 낮으면 강조, 0이면 비활성.
+  for(const k of ['sword','shield','archer']){
+    const n=G.stock[k]; el.stN[k].textContent=n;
+    el.st[k].classList.toggle('low', n>0 && n<=2);
+    el.st[k].classList.toggle('empty', n<=0);
+  }
   const g=G.gate;
   if(g){ const hp=Math.max(0,Math.ceil(g.hp)); el.hpText.textContent=`${hp} / ${g.maxHp}`; el.hpfill.style.width=(100*hp/g.maxHp)+'%'; el.hpwrap.classList.toggle('weak',!!g.weak&&!g.dead); }
-  const qkey=G.queue.join(',')+'|'+(G.tired?'t':'')+'|'+(G.queue.length?bundleCount(nowType()):0);
-  if(qkey!==lastQueueKey&&G.queue.length){ lastQueueKey=qkey; const labels=['NOW','NEXT','+1'];
-    el.queue.innerHTML=G.queue.slice(0,3).map((k,i)=>{ const t=HERO_TYPES[k],cnt=i===0?bundleCount(t):t.bundle;
+  const nowCnt=G.queue[0]?bundleCount(HERO_TYPES[G.queue[0]]):0;
+  const qkey=G.queue.map(x=>x||'-').join(',')+'|'+(G.tired?'t':'')+'|'+nowCnt;
+  if(qkey!==lastQueueKey){ lastQueueKey=qkey; const labels=['NOW','NEXT','+1'];
+    el.queue.innerHTML=G.queue.slice(0,3).map((k,i)=>{
+      if(!k) return `<div class="qcard empty"><div class="qlab">${labels[i]}</div><div class="qdot" style="background:#26304f"></div><div class="qname">—</div></div>`;
+      const t=HERO_TYPES[k],cnt=i===0?bundleCount(t):t.bundle;
       return `<div class="qcard ${i===0?'now':''}"><div class="qlab">${labels[i]}</div><div class="qdot" style="background:${t.color}"></div><div class="qname">${t.short}×${cnt}</div></div>`; }).join(''); }
   el.rushfill.style.width=Math.min(100,(G.rush/1.0)*100)+'%';
   // 상태 pill
@@ -774,17 +832,18 @@ function updateHUD(){
 function hideOverlay(){ el.overlay.classList.add('hidden'); }
 function showOverlay(html){ el.cardBox.innerHTML=html; el.overlay.classList.remove('hidden'); }
 function showStart(){
-  G.state='start'; const L=HERO_TYPES;
-  showOverlay(`<div class="big gold">DROP<br>PARTY RUSH</div>
-    <p class="sub"><b>길을 노려</b> 용사를 떨어뜨리고, <b>약점(WEAK) 때 쏟아부어</b> 몬스터를 터뜨려!<br>같은 용사끼리 부딪히면 <b>합체</b>해 강해진다.</p>
+  G.state='start'; const L=HERO_TYPES, c=CONFIG.stock;
+  showOverlay(`<div class="big gold">3 STAGE<br>EXPEDITION</div>
+    <p class="sub">정해진 용사단으로 <b>3개의 문</b>을 모두 돌파하라!<br>스테이지마다 <b>충전되지 않는다</b>. 다 쓰면 GAME OVER.</p>
     <div class="legend">
-      <div class="leg"><div class="d" style="background:${L.sword.color}"></div>검사<br><span>평균</span></div>
-      <div class="leg"><div class="d" style="background:${L.shield.color}"></div>방패<br><span>돌파</span></div>
-      <div class="leg"><div class="d" style="background:${L.archer.color}"></div>궁수<br><span>확산</span></div>
+      <div class="leg"><div class="d" style="background:${L.sword.color}"></div>검사 ${c.sword}<br><span>평균</span></div>
+      <div class="leg"><div class="d" style="background:${L.shield.color}"></div>방패 ${c.shield}<br><span>돌파</span></div>
+      <div class="leg"><div class="d" style="background:${L.archer.color}"></div>궁수 ${c.archer}<br><span>확산</span></div>
     </div>
-    <button class="btn" id="btnStart">탭해서 시작</button>
-    <p class="hint"><b>WEAK in 3</b> 예고를 보고 좋은 용사는 <b>HOLD</b>로 아꼈다가, <b>WEAK</b> 뜨면 <b>RUSH</b>로 쏟아부어!</p>`);
-  document.getElementById('btnStart').onclick=()=>{ G.round=0; G.upgrades={bundle:0,drops:0,dmg:0,rush:0}; initRound(); };
+    <p class="sub" style="margin:8px 0 14px">막 쏟으면 후반이 위험하고, <b>아껴 쓰면</b> 후반이 쉬워진다.</p>
+    <button class="btn" id="btnStart">START EXPEDITION</button>
+    <p class="hint"><b>WEAK</b> 예고 보고 좋은 용사는 <b>HOLD</b>로 아꼈다가, 약점에 <b>RUSH</b>로 쏟아부어!</p>`);
+  document.getElementById('btnStart').onclick=()=>startExpedition();
 }
 function buildHighlights(){
   const s=G.stats, out=[];
@@ -798,23 +857,37 @@ function buildHighlights(){
 }
 function highlightsHTML(){ const hl=buildHighlights(); if(!hl.length) return '';
   return `<div class="highlights">${hl.map(h=>`<div class="hl"><span class="hi">${h[0]}</span><span class="ht">${h[1]}</span><span class="hv">${h[2]}</span></div>`).join('')}</div>`; }
-function showReward(){
-  G.state='reward';
-  const pool=[ {key:'bundle',ico:'➕',t:'투입 +1',d:'모든 용사 한 번에 +1'},
-    {key:'dmg',ico:'💥',t:'충돌력 +20%',d:'타격 피해 증가'},
-    {key:'drops',ico:'🔁',t:'투입 횟수 +1',d:'기회를 한 번 더'},
-    {key:'rush',ico:'🔥',t:'RUSH 쉽게',d:'PARTY/FEVER 더 빨리'} ];
-  const pick=shuffle(pool.slice()).slice(0,3);
-  const cards=pick.map(p=>`<div class="reward" data-key="${p.key}" tabindex="0" role="button"><div class="ico">${p.ico}</div><div><div class="rt">${p.t}</div><div class="rd">${p.d}</div></div></div>`).join('');
-  showOverlay(`<div class="big good">ROUND ${G.round+1} CLEAR!</div>${highlightsHTML()}<p class="sub">강화를 하나 골라 다음 라운드로.</p><div class="rewards">${cards}</div>`);
-  el.cardBox.querySelectorAll('.reward').forEach(node=>{ const apply=()=>{ G.upgrades[node.dataset.key]++; G.round++; initRound(); }; node.onclick=apply; node.onkeydown=e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); apply(); } }; });
+// 남은 재고 한 줄 표시
+function stockLineHTML(){ return `<div class="hl"><span class="ht" style="color:var(--ink-dim)">남은 용사</span><span class="hv">검사 ${G.stock.sword} · 방패 ${G.stock.shield} · 궁수 ${G.stock.archer}</span></div>`; }
+function rankFor(total){ return total>=CONFIG.rank.S?'S':total>=CONFIG.rank.A?'A':total>=CONFIG.rank.B?'B':'C'; }
+function showStageClear(){
+  G.state='stageclear';
+  const spentShield=G.stageStartStock.shield-G.stock.shield;
+  const spentTotal=(G.stageStartStock.sword-G.stock.sword)+(G.stageStartStock.shield-G.stock.shield)+(G.stageStartStock.archer-G.stock.archer);
+  let note=''; if(spentShield===0) note='방패 아꼈다! 🛡'; else if(spentTotal<=4) note='Efficient Clear!';
+  const noteHTML = note?`<div class="hl"><span class="ht" style="color:var(--good)">${note}</span><span class="hv"></span></div>`:'';
+  showOverlay(`<div class="big good">STAGE ${G.round+1} CLEAR!</div>
+    <div class="highlights">${stockLineHTML()}${noteHTML}</div>
+    <p class="sub">남은 용사로 다음 문을 돌파하자.</p>
+    <button class="btn" id="btnNext">NEXT STAGE</button>`);
+  document.getElementById('btnNext').onclick=()=>{ G.round++; initRound(); };
 }
-function showAllClear(){ G.state='allclear';
-  showOverlay(`<div class="big gold">ALL CLEAR!</div>${highlightsHTML()}<p class="sub">3마리 몬스터를 모두 쓰러뜨렸어.<br>길을 노리고 약점에 쏟아부은 한 판 끝!</p><button class="btn" id="btnAgain">처음부터 다시</button>`);
-  document.getElementById('btnAgain').onclick=()=>{ G.round=0; G.upgrades={bundle:0,drops:0,dmg:0,rush:0}; initRound(); }; }
-function showFail(){ G.state='fail'; G.checklist.fail=true;
-  showOverlay(`<div class="big bad">몬스터가 버텼다</div><p class="sub">투입을 다 썼어. 같은 용사를 모아 키우고,<br><b>WEAK</b> 뜰 때 쏟아부어보자.</p><button class="btn" id="btnRetry">이 라운드 다시</button><button class="btn ghost" id="btnRestart">처음부터</button>`);
-  document.getElementById('btnRetry').onclick=()=>{ initRound(); }; document.getElementById('btnRestart').onclick=()=>{ G.round=0; G.upgrades={bundle:0,drops:0,dmg:0,rush:0}; initRound(); }; }
+function showExpeditionClear(){ G.state='allclear';
+  const total=totalStock(), rank=rankFor(total);
+  showOverlay(`<div class="big gold">EXPEDITION<br>CLEAR!</div>
+    <div class="highlights">${stockLineHTML()}</div>
+    ${highlightsHTML()}
+    <div class="rankbox">RANK <span class="rk rk-${rank}">${rank}</span></div>
+    <p class="sub" style="margin-top:10px">남은 용사 ${total} — 아껴 쓸수록 좋은 평가!</p>
+    <button class="btn" id="btnAgain">RESTART EXPEDITION</button>`);
+  document.getElementById('btnAgain').onclick=()=>startExpedition(); }
+function showGameOver(){ G.state='fail'; G.checklist.fail=true;
+  showOverlay(`<div class="big bad">EXPEDITION FAILED</div>
+    <p class="sub">용사단을 모두 소진했습니다.<br>Stage ${G.round+1}의 몬스터를 쓰러뜨리지 못했어요.</p>
+    <button class="btn" id="btnRetry">RETRY STAGE</button>
+    <button class="btn ghost" id="btnRestart">RESTART EXPEDITION</button>`);
+  document.getElementById('btnRetry').onclick=()=>retryStage();
+  document.getElementById('btnRestart').onclick=()=>startExpedition(); }
 
 /* ---------------- 메인 루프 ---------------- */
 function loop(ts){ if(!G.last)G.last=ts; let dt=(ts-G.last)/1000; G.last=ts; if(dt>0.05)dt=0.05; update(dt); render(); requestAnimationFrame(loop); }
@@ -843,6 +916,13 @@ function runSelfTest(){
   ok('countdown off when normal far', weakCountdownVal(4.0,false)===0);
   ok('countdown off when weak', weakCountdownVal(2.0,true)===0);
   ok('hold perRound>=1', CONFIG.hold.perRound>=1);
+  ok('rank S/A/B/C', rankFor(8)==='S'&&rankFor(5)==='A'&&rankFor(2)==='B'&&rankFor(0)==='C');
+  (()=>{ const sv={stock:{...G.stock},queue:[...G.queue],hold:G.hold};
+    G.stock={sword:1,shield:0,archer:0}; G.queue=[]; G.hold=null;
+    ok('canQueue 재고만 허용', canQueue('sword')===true && canQueue('shield')===false);
+    G.queue=['sword']; ok('canQueue 큐 보유분 반영', canQueue('sword')===false);
+    G.stock={sword:0,shield:0,archer:0}; G.queue=[]; ok('drawType 빈재고 → null', drawType()===null);
+    G.stock=sv.stock; G.queue=sv.queue; G.hold=sv.hold; })();
   ok('clear at 0',isCleared(0)&&!isCleared(1));
   const pass=res.filter(r=>r[1]).length;
   console.log(`%c[SELFTEST] ${pass}/${res.length} passed`,'color:#46e08a;font-weight:bold');
